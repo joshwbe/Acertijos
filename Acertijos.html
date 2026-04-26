@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Grimorio · Acertijos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0d0d0d;
+    color: #f0e6d3;
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    background: #0d0d0d;
+    border-bottom: 1px solid #222;
+    padding: 0.7rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .tb-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.25em;
+    color: #c9a94d;
+  }
+  .tb-right {
+    font-size: 0.55rem;
+    letter-spacing: 0.18em;
+    color: #555;
+  }
+  .tb-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #c9a94d;
+    margin-right: 6px;
+    animation: tbpulse 2s ease-in-out infinite;
+  }
+  @keyframes tbpulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1; }
+  }
+
+  /* ─── MAIN LAYOUT ─── */
+  .shell { min-height: 100vh; display: flex; flex-direction: column; }
+  .main  { display: flex; flex: 1; min-height: 0; }
+
+  /* ─── LEFT PANEL (image / art) ─── */
+  .left-panel {
+    width: 55%;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #111;
+    min-height: 520px;
+  }
+
+  /* Drop a real image here — set src in JS or directly in HTML */
+  .left-panel img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    position: absolute; inset: 0;
+    z-index: 1;
+    transition: opacity 0.8s ease;
+  }
+
+  /* Fallback canvas art (used when no image is set) */
+  .left-panel canvas {
+    width: 100%; height: 100%;
+    display: block;
+    position: absolute; inset: 0;
+    z-index: 1;
+  }
+
+  /* Right-side fade so the panels blend */
+  .img-overlay {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(to right, rgba(13,13,13,0) 55%, rgba(13,13,13,0.97) 100%),
+      linear-gradient(to top,   rgba(13,13,13,0.6) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Album label bottom-left */
+  .img-label {
+    position: absolute;
+    bottom: 1.2rem; left: 1.2rem;
+    z-index: 3;
+  }
+  .img-label .alb-name {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 0.72rem;
+    font-style: italic;
+    color: rgba(201,169,77,0.75);
+    letter-spacing: 0.08em;
+  }
+  .img-label .alb-artist {
+    font-size: 0.52rem;
+    letter-spacing: 0.2em;
+    color: rgba(240,230,211,0.3);
+    margin-top: 2px;
+  }
+
+  /* ─── RIGHT PANEL ─── */
+  .right-panel {
+    flex: 1;
+    background: #0d0d0d;
+    display: flex;
+    flex-direction: column;
+    padding: 2.5rem 2.2rem 1.5rem;
+    border-left: 1px solid #1a1a1a;
+    position: relative;
+    overflow: hidden;
+  }
+  .right-panel::before {
+    content: '';
+    position: absolute; top: 0; right: 0;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(201,169,77,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Progress dots + counter */
+  .riddle-counter {
+    font-size: 0.52rem;
+    letter-spacing: 0.3em;
+    color: #444;
+    margin-bottom: 1.6rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .rc-line  { flex: 1; height: 1px; background: #1e1e1e; }
+  .rc-dots  { display: flex; gap: 5px; }
+  .rdot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    border: 1px solid #333;
+    background: transparent;
+    transition: all 0.5s;
+  }
+  .rdot.done {
+    background: #c9a94d;
+    border-color: #c9a94d;
+    box-shadow: 0 0 6px rgba(201,169,77,0.5);
+  }
+  .rdot.cur {
+    background: rgba(201,169,77,0.3);
+    border-color: #c9a94d;
+    animation: rdpulse 1.5s ease-in-out infinite;
+  }
+  @keyframes rdpulse {
+    0%, 100% { box-shadow: 0 0 3px rgba(201,169,77,0.2); }
+    50%       { box-shadow: 0 0 10px rgba(201,169,77,0.6); }
+  }
+
+  .clue-tag {
+    font-size: 0.5rem;
+    letter-spacing: 0.35em;
+    color: #c9a94d;
+    opacity: 0.5;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+  }
+
+  /* Riddle text */
+  .riddle-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .riddle-q {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.18rem;
+    line-height: 1.9;
+    color: #f0e6d3;
+    font-style: italic;
+    font-weight: 400;
+    margin-bottom: 2rem;
+    position: relative;
+    padding-left: 1.2rem;
+    white-space: pre-line;
+  }
+  .riddle-q::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0.3em; bottom: 0.3em;
+    width: 2px;
+    background: linear-gradient(to bottom, #c9a94d, transparent);
+  }
+
+  /* Answer area */
+  .answer-section { margin-top: auto; }
+  .ans-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.28em;
+    color: #444;
+    margin-bottom: 0.5rem;
+  }
+  .ans-row {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #333;
+    margin-bottom: 0.7rem;
+    align-items: center;
+    transition: border-color 0.3s;
+  }
+  .ans-row:focus-within { border-color: #c9a94d; }
+  .ans-row.wrong {
+    border-color: #8b2020;
+    animation: sh 0.4s ease;
+  }
+  .ans-row.ok { border-color: #2d7a4a; }
+  @keyframes sh {
+    0%, 100% { transform: translateX(0); }
+    25%       { transform: translateX(-7px); }
+    75%       { transform: translateX(7px); }
+  }
+  .ans-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0.55rem 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    color: #f0e6d3;
+    letter-spacing: 0.06em;
+    caret-color: #c9a94d;
+  }
+  .ans-input::placeholder { color: #2e2e2e; font-style: italic; }
+  .submit-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.4rem 0.5rem;
+    color: #c9a94d;
+    font-size: 0.85rem;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    font-family: 'Space Mono', monospace;
+  }
+  .submit-btn:hover { opacity: 1; }
+
+  .feedback {
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    min-height: 1rem;
+    margin-bottom: 0.5rem;
+    font-family: 'Space Mono', monospace;
+  }
+  .feedback.err { color: #7a3030; }
+  .feedback.ok  { color: #3a7a52; }
+
+  /* Hint */
+  .hint-area { margin-top: 0.5rem; }
+  .hint-btn {
+    background: none;
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.52rem;
+    color: #333;
+    cursor: pointer;
+    letter-spacing: 0.15em;
+    transition: color 0.3s;
+    padding: 0;
+  }
+  .hint-btn:hover { color: #666; }
+  .hint-content {
+    display: none;
+    margin-top: 0.6rem;
+    padding: 0.7rem;
+    border-left: 2px solid #1e1e1e;
+    font-size: 0.62rem;
+    color: #555;
+    font-style: italic;
+    letter-spacing: 0.05em;
+    line-height: 1.7;
+  }
+  .hint-content.open { display: block; }
+
+  /* Bottom progress bar */
+  .progress-bar-wrap {
+    margin-top: 1.5rem;
+    border-top: 1px solid #161616;
+    padding-top: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .prog-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.15em;
+    color: #333;
+    white-space: nowrap;
+  }
+  .prog-track {
+    flex: 1;
+    height: 1px;
+    background: #1a1a1a;
+    position: relative;
+  }
+  .prog-fill {
+    height: 100%;
+    background: #c9a94d;
+    transition: width 0.8s ease;
+    position: relative;
+  }
+  .prog-fill::after {
+    content: '';
+    position: absolute; right: 0; top: -2px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #c9a94d;
+    box-shadow: 0 0 6px rgba(201,169,77,0.6);
+  }
+
+  /* Victory screen */
+  .victory-overlay {
+    display: none;
+    position: absolute; inset: 0;
+    background: rgba(13,13,13,0.97);
+    z-index: 10;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem;
+  }
+  .victory-overlay.show { display: flex; }
+  .vic-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    letter-spacing: 0.15em;
+    color: #c9a94d;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  .vic-line {
+    width: 60px; height: 1px;
+    background: #c9a94d;
+    margin: 1rem auto;
+  }
+  .vic-msg {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.9rem;
+    font-style: italic;
+    color: #666;
+    line-height: 1.9;
+    max-width: 280px;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .main { flex-direction: column; }
+    .left-panel { width: 100%; min-height: 240px; max-height: 300px; }
+    .img-overlay {
+      background:
+        linear-gradient(to bottom, rgba(13,13,13,0) 55%, rgba(13,13,13,0.97) 100%);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="tb-title"><span class="tb-dot"></span>M</div>
+    <div class="tb-right">NIVEL <span id="tbLevel">01</span> / <span id="tbTotal">10</span> &nbsp;·&nbsp; EN CURSO</div>
+  </div>
+
+  <div class="main" id="mainArea">
+
+    <!-- ═══════════════════════════════════════════════
+         LEFT PANEL
+         Para usar una imagen real, agrega un <img> con
+         src="tu-imagen.jpg" dentro de .left-panel,
+         o cambia imageUrl en el objeto de cada acertijo.
+    ═══════════════════════════════════════════════ -->
+    <div class="left-panel" id="leftPanel">
+      <img id="albumImg" src="The_Dark_Side_of_the_Moon.png" alt="" style="display:none"/>
+      <canvas id="artCanvas"></canvas>
+      <div class="img-overlay"></div>
+      <div class="img-label">
+        <div class="alb-name"   id="albName"></div>
+        <div class="alb-artist" id="albArtist"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         RIGHT PANEL
+    ═══════════════════════════════════════════════ -->
+    <div class="right-panel" id="rightPanel">
+      <div class="riddle-counter">
+        <div class="rc-dots" id="dots"></div>
+        <div class="rc-line"></div>
+        <span id="rCounterTxt">01 / 10</span>
+      </div>
+
+      <div class="clue-tag">— Pista —</div>
+
+      <div class="riddle-body">
+        <div class="riddle-q" id="rText"></div>
+      </div>
+
+      <div class="answer-section">
+        <div class="ans-label">RESPUESTA</div>
+        <div class="ans-row" id="ansRow">
+          <input class="ans-input" id="ansInput" type="text"
+                 placeholder="escribe aquí..."
+                 autocomplete="off" spellcheck="false"/>
+          <button class="submit-btn" onclick="check()">→</button>
+        </div>
+        <div class="feedback" id="fb"></div>
+        <div class="hint-area">
+          <button class="hint-btn" onclick="toggleHint()">+ ver pista oculta</button>
+          <div class="hint-content" id="hintBox"></div>
+        </div>
+      </div>
+
+      <div class="progress-bar-wrap">
+        <span class="prog-label">PROGRESO</span>
+        <div class="prog-track">
+          <div class="prog-fill" id="progFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Victory -->
+      <div class="victory-overlay" id="victory">
+        <div class="vic-num" id="vicNum">10/10</div>
+        <div class="vic-line"></div>
+        <div class="vic-msg">ola demonio.<br><br>Bien jugado.</div>
+      </div>
+    </div>
+
+  </div><!-- /.main -->
+</div><!-- /.shell -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   ACERTIJOS — edita este arreglo para personalizar todo.
+
+   Cada objeto acepta:
+     num       — número para mostrar ("01")
+     albName   — nombre del álbum / imagen
+     albArtist — artista y año
+     imageUrl  — URL de imagen real (deja "" para usar arte generativo)
+     text      — texto del acertijo (usa \n para saltos de línea)
+     hint      — pista oculta
+     answers   — arreglo de respuestas válidas (se normalizan automáticamente)
+     drawArt   — función de arte generativo de respaldo (ver abajo)
+═══════════════════════════════════════════════════════════════ */
+const riddles = [
+
+  /* ── ACERTIJO 1 ── */
+  {
+    num: "01",
+    albName:   "Relatos de la noche",
+    albArtist: "",
+    imageUrl:  "Tomas.png",           /* ← pon aquí la URL de tu imagen si quieres */
+    text: "En San Luis Potosí, unos padres creen que su hijo usa a un amigo imaginario llamado _____ como excusa para hacer travesuras. Sin embargo, las actividades paranormales (mover objetos, tirar libros) continúan incluso cuando el niño se va de vacaciones con sus abuelos",
+    hint: "And then one day you find. Ten years have got behind you No one told you when to run You missed the starting gun",
+    answers: ["Thomas", "THOMAS"],
+    drawArt: drawPrism
+  },
+
+  /* ── ACERTIJO 2 ── */
+  {
+    num: "02",
+    albName:   "Led Zeppelin IV",
+    albArtist: "Led Zeppelin · 1971",
+    imageUrl:  "",
+    text: "Subo por una escalera\nque no tiene peldaños.\nLos que me buscan\nno saben que ya me tienen.\n\n¿Qué soy?",
+    hint: "'Stairway to Heaven'. La escalera no siempre lleva al cielo.",
+    answers: ["el cielo", "cielo", "el paraiso", "paraiso", "la esperanza", "esperanza"],
+    drawArt: drawZeppelin
+  },
+
+  /* ── ACERTIJO 3 ── */
+  {
+    num: "03",
+    albName:   "Abbey Road",
+    albArtist: "The Beatles · 1969",
+    imageUrl:  "",
+    text: "Todos caminamos sobre mí,\npero pocos me ven.\nSoy el camino que termina\njusto cuando crees que empieza.\n\n¿Qué soy?",
+    hint: "Cuatro hombres cruzaron una calle. Nadie preguntó a dónde iban.",
+    answers: ["el camino", "camino", "la vida", "vida", "la calle", "calle"],
+    drawArt: drawAbbey
+  },
+
+  /* ── ACERTIJO 4 ── */
+  {
+    num: "04",
+    albName:   "Nevermind",
+    albArtist: "Nirvana · 1991",
+    imageUrl:  "",
+    text: "Me persigues toda tu infancia.\nCuando me alcanzas,\nme convierto en tu jaula.\n\n¿Qué soy?",
+    hint: "El bebé nada hacia un billete. Crecer tiene un precio.",
+    answers: ["la adultez", "adultez", "la madurez", "madurez", "el dinero", "dinero", "el exito", "exito"],
+    drawArt: drawNirvana
+  },
+
+  /* ── ACERTIJO 5 ── */
+  {
+    num: "05",
+    albName:   "The Wall",
+    albArtist: "Pink Floyd · 1979",
+    imageUrl:  "",
+    text: "Me construyes ladrillo a ladrillo\ncada vez que te lastiman.\nMe llamas protección,\npero soy tu prisión.\n\n¿Qué soy?",
+    hint: "'Another brick in the wall.' ¿Cuántos ladrillos llevas hoy?",
+    answers: ["el muro", "muro", "la pared", "pared", "un muro", "una pared"],
+    drawArt: drawWall
+  },
+
+  /* ── ACERTIJO 6 ── reemplaza con el tuyo ── */
+  {
+    num: "06",
+    albName:   "Nombre del álbum",
+    albArtist: "Artista · Año",
+    imageUrl:  "",           /* ← URL de portada del álbum */
+    text: "Texto del acertijo 6.\n\n¿Qué soy?",
+    hint: "Pista del acertijo 6.",
+    answers: ["respuesta"],
+    drawArt: drawGeneric
+  },
+
+  /* ── ACERTIJO 7 ── reemplaza con el tuyo ── */
+  {
+    num: "07",
+    albName:   "Nombre del álbum",
+    albArtist: "Artista · Año",
+    imageUrl:  "",
+    text: "Texto del acertijo 7.\n\n¿Qué soy?",
+    hint: "Pista del acertijo 7.",
+    answers: ["respuesta"],
+    drawArt: drawGeneric
+  },
+
+  /* ── ACERTIJO 8 ── reemplaza con el tuyo ── */
+  {
+    num: "08",
+    albName:   "Nombre del álbum",
+    albArtist: "Artista · Año",
+    imageUrl:  "",
+    text: "Texto del acertijo 8.\n\n¿Qué soy?",
+    hint: "Pista del acertijo 8.",
+    answers: ["respuesta"],
+    drawArt: drawGeneric
+  },
+
+  /* ── ACERTIJO 9 ── reemplaza con el tuyo ── */
+  {
+    num: "09",
+    albName:   "Nombre del álbum",
+    albArtist: "Artista · Año",
+    imageUrl:  "",
+    text: "Texto del acertijo 9.\n\n¿Qué soy?",
+    hint: "Pista del acertijo 9.",
+    answers: ["respuesta"],
+    drawArt: drawGeneric
+  },
+
+  /* ── ACERTIJO 10 ── reemplaza con el tuyo ── */
+  {
+    num: "10",
+    albName:   "Nombre del álbum",
+    albArtist: "Artista · Año",
+    imageUrl:  "",
+    text: "Texto del acertijo 10.\n\n¿Qué soy?",
+    hint: "Pista del acertijo 10.",
+    answers: ["respuesta"],
+    drawArt: drawGeneric
+  }
+
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   LÓGICA DE LA APP
+═══════════════════════════════════════════════════════════════ */
+let cur = 0, hintOpen = false;
+const TOTAL = riddles.length;
+
+function norm(s) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function buildDots() {
+  const d = document.getElementById('dots');
+  d.innerHTML = '';
+  riddles.forEach((_, i) => {
+    const el = document.createElement('div');
+    el.className = 'rdot' + (i < cur ? ' done' : i === cur ? ' cur' : '');
+    d.appendChild(el);
+  });
+}
+
+function loadRiddle() {
+  const r = riddles[cur];
+
+  document.getElementById('rText').textContent      = r.text;
+  document.getElementById('tbLevel').textContent    = r.num;
+  document.getElementById('tbTotal').textContent    = TOTAL;
+  document.getElementById('rCounterTxt').textContent= r.num + ' / ' + String(TOTAL).padStart(2,'0');
+  document.getElementById('albName').textContent    = r.albName;
+  document.getElementById('albArtist').textContent  = r.albArtist;
+  document.getElementById('hintBox').textContent    = r.hint;
+  document.getElementById('hintBox').className      = 'hint-content';
+  document.getElementById('ansInput').value         = '';
+  document.getElementById('ansRow').className       = 'ans-row';
+  document.getElementById('fb').textContent         = '';
+  document.getElementById('fb').className           = 'feedback';
+  document.getElementById('vicNum').textContent     = TOTAL + '/' + TOTAL;
+  hintOpen = false;
+
+  document.getElementById('progFill').style.width = (cur / TOTAL * 100) + '%';
+  buildDots();
+
+  /* Image or canvas art */
+  const imgEl = document.getElementById('albumImg');
+  const canvas = document.getElementById('artCanvas');
+
+  if (r.imageUrl) {
+    imgEl.src     = r.imageUrl;
+    imgEl.style.display  = 'block';
+    canvas.style.display = 'none';
+  } else {
+    imgEl.style.display  = 'none';
+    canvas.style.display = 'block';
+    setTimeout(initArt, 50);
+  }
+
+  /* Entrance animation */
+  const rp = document.getElementById('rightPanel');
+  rp.style.opacity   = '0';
+  rp.style.transform = 'translateX(14px)';
+  requestAnimationFrame(() => {
+    rp.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
+    rp.style.opacity    = '1';
+    rp.style.transform  = 'translateX(0)';
+  });
+
+  const lp = document.getElementById('leftPanel');
+  lp.style.opacity = '0';
+  requestAnimationFrame(() => {
+    lp.style.transition = 'opacity 0.8s ease';
+    lp.style.opacity    = '1';
+  });
+}
+
+function initArt() {
+  const canvas = document.getElementById('artCanvas');
+  const panel  = document.getElementById('leftPanel');
+  canvas.width  = panel.clientWidth  || 480;
+  canvas.height = panel.clientHeight || 520;
+  const ctx = canvas.getContext('2d');
+  riddles[cur].drawArt(ctx, canvas.width, canvas.height);
+}
+
+function toggleHint() {
+  hintOpen = !hintOpen;
+  document.getElementById('hintBox').className = 'hint-content' + (hintOpen ? ' open' : '');
+}
+
+function check() {
+  const inp = document.getElementById('ansInput');
+  const fb  = document.getElementById('fb');
+  const row = document.getElementById('ansRow');
+  const val = norm(inp.value);
+  if (!val) return;
+
+  if (riddles[cur].answers.some(a => norm(a) === val)) {
+    row.className = 'ans-row ok';
+    fb.textContent = '✓ correcto — siguiente nivel';
+    fb.className   = 'feedback ok';
+    document.getElementById('progFill').style.width = ((cur + 1) / TOTAL * 100) + '%';
+    setTimeout(() => {
+      cur++;
+      if (cur >= TOTAL) showVictory();
+      else loadRiddle();
+    }, 1400);
+  } else {
+    row.className = 'ans-row wrong';
+    fb.textContent = '✗ no es eso — intenta de nuevo';
+    fb.className   = 'feedback err';
+    setTimeout(() => row.className = 'ans-row', 700);
+  }
+}
+
+function showVictory() {
+  document.getElementById('victory').className = 'victory-overlay show';
+  buildDots();
+}
+
+document.getElementById('ansInput')
+  .addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+
+window.addEventListener('resize', () => setTimeout(initArt, 100));
+
+/* ═══════════════════════════════════════════════════════════════
+   FUNCIONES DE ARTE GENERATIVO
+   Se usan cuando imageUrl está vacío.
+═══════════════════════════════════════════════════════════════ */
+
+/* Acertijo 1 — prisma Pink Floyd */
+function drawPrism(ctx, W, H) {
+  ctx.fillStyle = '#050206'; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 160; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.5 + 0.06})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 0.9 + 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const cx = W * 0.42, cy = H * 0.5;
+  ctx.strokeStyle = 'rgba(220,215,240,0.9)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - H * 0.32);
+  ctx.lineTo(cx - W * 0.16, cy + H * 0.2);
+  ctx.lineTo(cx + W * 0.16, cy + H * 0.2);
+  ctx.closePath(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(220,215,240,0.5)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(W * 0.04, cy); ctx.lineTo(cx - W * 0.09, cy); ctx.stroke();
+  [['#ff2020','-0.45'],['#ff6600','-0.3'],['#ffee00','-0.15'],
+   ['#22ff66','0'],['#2266ff','0.15'],['#9922ff','0.3'],['#ff22cc','0.42']
+  ].forEach(([c, a]) => {
+    const ang = parseFloat(a);
+    const ex = cx + Math.cos(ang) * W * 0.65, ey = cy + Math.sin(ang) * H * 0.55;
+    ctx.strokeStyle = c + 'cc'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx + W * 0.07, cy + ang * H * 0.18);
+    ctx.lineTo(ex, ey); ctx.stroke();
+  });
+  const g = ctx.createLinearGradient(W * 0.45, 0, W, 0);
+  g.addColorStop(0, 'rgba(5,2,6,0)'); g.addColorStop(1, 'rgba(5,2,6,0.97)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* Acertijo 2 — escalera/llamas Zeppelin */
+function drawZeppelin(ctx, W, H) {
+  ctx.fillStyle = '#0a0800'; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 120; i++) {
+    ctx.fillStyle = `rgba(255,210,120,${Math.random() * 0.35 + 0.05})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 0.9 + 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const cx = W * 0.4, base = H * 0.85;
+  ctx.strokeStyle = 'rgba(180,140,60,0.3)'; ctx.lineWidth = 0.6;
+  for (let r = 20; r < Math.max(W, H) * 0.8; r += 28) {
+    ctx.beginPath(); ctx.arc(cx, base, r, Math.PI, 0); ctx.stroke();
+  }
+  [[0,'rgba(200,160,50,0.12)',W*0.16,H*0.6],
+   [0,'rgba(230,190,80,0.16)',W*0.1,H*0.35],
+   [0,'rgba(255,240,180,0.2)',W*0.06,H*0.18]
+  ].forEach(([_ox, col, rw, fh]) => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(cx - rw, base);
+    ctx.quadraticCurveTo(cx, base - fh * 0.5, cx, base - fh);
+    ctx.quadraticCurveTo(cx, base - fh * 0.5, cx + rw, base);
+    ctx.closePath(); ctx.fill();
+  });
+  ctx.fillStyle = 'rgba(255,240,180,0.6)';
+  ctx.beginPath(); ctx.arc(cx, base - H * 0.6 - H * 0.18 - 8, 7, 0, Math.PI * 2); ctx.fill();
+  const g = ctx.createLinearGradient(W * 0.45, 0, W, 0);
+  g.addColorStop(0, 'rgba(10,8,0,0)'); g.addColorStop(1, 'rgba(10,8,0,0.98)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* Acertijo 3 — paso de cebra Abbey Road */
+function drawAbbey(ctx, W, H) {
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, H * 0.55, W, H * 0.45);
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 18) {
+    ctx.beginPath(); ctx.moveTo(x, H * 0.55); ctx.lineTo(x, H); ctx.stroke();
+  }
+  const stripeW = W * 0.1;
+  for (let i = 0; i < 5; i++) {
+    const px = W * 0.22 + i * (stripeW + W * 0.04);
+    ctx.fillStyle = 'rgba(240,230,210,0.07)';
+    ctx.fillRect(px, -5, stripeW, H * 0.62);
+  }
+  [W*0.25, W*0.35, W*0.45, W*0.55].forEach(fx => {
+    const fy = H * 0.52, fh = H * 0.22;
+    ctx.fillStyle = 'rgba(200,190,170,0.12)';
+    ctx.fillRect(fx - 7, fy - fh, 14, fh);
+    ctx.beginPath(); ctx.arc(fx, fy - fh - 8, 8, 0, Math.PI * 2); ctx.fill();
+  });
+  const g = ctx.createLinearGradient(W * 0.38, 0, W, 0);
+  g.addColorStop(0, 'rgba(17,17,17,0)');
+  g.addColorStop(0.65, 'rgba(13,13,13,0.88)');
+  g.addColorStop(1, 'rgba(13,13,13,1)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* Acertijo 4 — agua/burbuja Nirvana */
+function drawNirvana(ctx, W, H) {
+  ctx.fillStyle = '#001a2e'; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 100; i++) {
+    ctx.fillStyle = `rgba(100,180,255,${Math.random() * 0.25 + 0.04})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 0.8 + 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const cx = W * 0.4, cy = H * 0.55;
+  ctx.strokeStyle = 'rgba(100,160,220,0.25)'; ctx.lineWidth = 1;
+  for (let r = 15; r < 130; r += 20) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(150,200,255,0.1)';
+  ctx.beginPath(); ctx.ellipse(cx, cy, 18, 28, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(230,200,100,0.4)';
+  ctx.beginPath(); ctx.arc(W * 0.62, H * 0.38, 6, 0, Math.PI * 2); ctx.fill();
+  const g = ctx.createLinearGradient(W * 0.42, 0, W, 0);
+  g.addColorStop(0, 'rgba(0,26,46,0)'); g.addColorStop(1, 'rgba(13,13,13,0.98)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* Acertijo 5 — muro de ladrillos */
+function drawWall(ctx, W, H) {
+  ctx.fillStyle = '#0d0a08'; ctx.fillRect(0, 0, W, H);
+  const bw = W * 0.11, bh = H * 0.065;
+  for (let row = 0; row < Math.ceil(H / bh) + 2; row++) {
+    const y = row * bh, offset = row % 2 === 0 ? 0 : bw * 0.55;
+    for (let col = -1; col < Math.ceil(W / bw) + 2; col++) {
+      const x = col * bw + offset - bw;
+      ctx.fillStyle = `rgba(60,40,30,${0.04 + Math.random() * 0.04})`;
+      ctx.fillRect(x + 1, y + 1, bw - 2, bh - 2);
+      ctx.strokeStyle = 'rgba(30,20,15,0.3)'; ctx.lineWidth = 0.5;
+      ctx.strokeRect(x + 1, y + 1, bw - 2, bh - 2);
+    }
+  }
+  const cx = W * 0.42, cy = H * 0.5, cr = Math.min(W, H) * 0.2;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI * 2); ctx.fill();
+  for (let r = cr - 5; r > 5; r -= 8) {
+    ctx.strokeStyle = `rgba(80,50,35,${(cr - r) / cr * 0.28})`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(180,100,50,0.15)'; ctx.lineWidth = 0.7;
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+    ctx.beginPath();
+    ctx.moveTo(cx + cr * 0.3 * Math.cos(a), cy + cr * 0.3 * Math.sin(a));
+    ctx.lineTo(cx + cr * 1.2 * Math.cos(a), cy + cr * 1.2 * Math.sin(a));
+    ctx.stroke();
+  }
+  const g = ctx.createLinearGradient(W * 0.35, 0, W, 0);
+  g.addColorStop(0, 'rgba(13,10,8,0)'); g.addColorStop(1, 'rgba(13,13,13,0.98)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* Respaldo genérico para acertijos 6-10 */
+function drawGeneric(ctx, W, H) {
+  ctx.fillStyle = '#080808'; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 130; i++) {
+    ctx.fillStyle = `rgba(201,169,77,${Math.random() * 0.2 + 0.03})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 0.9 + 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const cx = W * 0.42, cy = H * 0.5;
+  ctx.strokeStyle = 'rgba(201,169,77,0.15)'; ctx.lineWidth = 0.8;
+  for (let r = 20; r < Math.max(W, H); r += 35) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  const g = ctx.createLinearGradient(W * 0.35, 0, W, 0);
+  g.addColorStop(0, 'rgba(8,8,8,0)'); g.addColorStop(1, 'rgba(13,13,13,0.98)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* ── Arranque ── */
+loadRiddle();
+</script>
+</body>
+</html>
